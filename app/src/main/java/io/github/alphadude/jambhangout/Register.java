@@ -1,22 +1,30 @@
 package io.github.alphadude.jambhangout;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
-import retrofit.Callback;
-import retrofit.RestAdapter;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
+import java.io.IOException;
+
+import dmax.dialog.SpotsDialog;
+import io.github.alphadude.jambhangout.Models.Response;
+import io.github.alphadude.jambhangout.Models.User;
+import io.github.alphadude.jambhangout.Network.NetworkUtils;
+import retrofit2.adapter.rxjava.HttpException;
+import rx.Subscriber;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
+import rx.subscriptions.CompositeSubscription;
 
 /**
  * Created by alphadude on 8/20/17.
@@ -27,13 +35,23 @@ public class Register extends AppCompatActivity {
     private EditText fullname,username,email,password,password1;
     private Button register;
 
-    public static final String BASE_URL = "http://www.circlepanda.com/Jamb/";
+    AlertDialog dialog;
+    // initialise a CompositeSubscription object and add all the RxJava subscriptions to it.
+    private CompositeSubscription mSubscriptions;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.register_activity);
+        mSubscriptions = new CompositeSubscription();
+        dialog = new SpotsDialog(Register.this, R.style.Custom);
+        initViews();
 
+    }
+
+    private void initViews() {
         fullname= (EditText)findViewById(R.id.edfullname);
         username= (EditText)findViewById(R.id.edusername);
         email= (EditText)findViewById(R.id.edemail);
@@ -54,64 +72,112 @@ public class Register extends AppCompatActivity {
         register.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                click();
+
+
             }
         });
-
     }
 
     private void insertUser(){
-        RestAdapter adapter = new RestAdapter.Builder()
-            .setEndpoint(BASE_URL)
-                .build();
+        //fullname.getText().toString();
+        String Username =username.getText().toString();
+        String Email =email.getText().toString();
+        String Password =password.getText().toString();
+        String PasswordConfirm = password1.getText().toString();
 
-        RegisterApi api = adapter.create(RegisterApi.class);
-/*
-        api.insertUser(
-                //fullname.getText().toString();
-                username.getText().toString();
-                email.getText().toString();
-                password.getText().toString();
-                password1.getText().toString();
+        if (!Password.equalsIgnoreCase(PasswordConfirm)){
+            showMessage("Password does not match");
+            return ;
+        }
 
+        if (TextUtils.isEmpty(Username)||TextUtils.isEmpty(Email)||TextUtils.isEmpty(Password)||TextUtils.isEmpty(PasswordConfirm)){
+            showMessage("Fields cannot be empty");
+            return;
+        }
 
-        new Callback<Response>(){
-            @Override
-            public void success(Response result,Response response){
+        User user = new User();
+        user.setUserName(Username);
+        user.setEmail(Email);
+        user.setPassword(Password);
+        registerUser(user);
 
-                BufferedReader reader = null;
-
-                String output =" ";
-
-                try{
-                    reader = new BufferedReader(new InputStreamReader(result.getBody().in()));
-                    output = reader.readLine();
-                }catch (IOException e){
-
-                    e.printStackTrace();
-
-                }
-                Toast.makeText(Register.this,output,Toast.LENGTH_SHORT).show();
-
-            }
-
-            @Override
-            public void failure(RetrofitError error) {
-                Toast.makeText(Register.this,error.toString(),Toast.LENGTH_SHORT).show();
-            }
-        };
-        )*/
 
     }
 
+    private void registerUser(User user) {
+        dialog.show();
+        mSubscriptions.add(NetworkUtils.getRetrofit().register(user)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe(new Subscriber<Response>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        handleError(e);
+                    }
+
+                    @Override
+                    public void onNext(Response response) {
+                        handleResponse(response);
+
+                    }
+                }));
+    }
+
+    private void handleResponse(Response response) {
+        username.setText("");
+        email.setText("");
+        password.setText("");
+        password1.setText("");
+
+        Intent profile = new Intent(Register.this,Profile.class);
+        startActivity(profile);
+    }
+
+    private void handleError(Throwable e) {
+
+        dialog.dismiss();
+
+        if (e instanceof HttpException) {
+
+            Gson gson = new GsonBuilder().create();
+
+            try {
+                String errorBody = ((HttpException) e).response().errorBody().string();
+                Response response = gson.fromJson(errorBody, Response.class);
+                showMessage(response.getMessage());
+
+            } catch (IOException error) {
+                error.printStackTrace();
+            }
+        } else {
+
+            // if it is not a server error show a toast that it is a network error
+            showMessage("Please check your internet connection  !");
+        }
+    }
+
+    private void showMessage(String s) {
+
+        Toast.makeText(Register.this, s, Toast.LENGTH_SHORT).show();
+    }
+
     public void click(){
-        Intent i = new Intent(this,Following.class);
-        startActivity(i);
+        insertUser();
 
     }
     public void onClick(View v){
 
-        insertUser();
 
+
+    }
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mSubscriptions.unsubscribe();
     }
 }
