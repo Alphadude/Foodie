@@ -72,14 +72,13 @@ public class Register extends AppCompatActivity {
         register.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
-
+                click();
             }
         });
     }
 
     private void insertUser(){
-        //fullname.getText().toString();
+        String FullName = fullname.getText().toString();
         String Username =username.getText().toString();
         String Email =email.getText().toString();
         String Password =password.getText().toString();
@@ -90,18 +89,16 @@ public class Register extends AppCompatActivity {
             return ;
         }
 
-        if (TextUtils.isEmpty(Username)||TextUtils.isEmpty(Email)||TextUtils.isEmpty(Password)||TextUtils.isEmpty(PasswordConfirm)){
+        if (TextUtils.isEmpty(FullName)||TextUtils.isEmpty(Username)||TextUtils.isEmpty(Email)||TextUtils.isEmpty(Password)||TextUtils.isEmpty(PasswordConfirm)){
             showMessage("Fields cannot be empty");
             return;
         }
-
         User user = new User();
+        user.setFullName(FullName);
         user.setUserName(Username);
         user.setEmail(Email);
         user.setPassword(Password);
         registerUser(user);
-
-
     }
 
     private void registerUser(User user) {
@@ -153,28 +150,22 @@ public class Register extends AppCompatActivity {
 
             } catch (IOException error) {
                 error.printStackTrace();
+                showMessage(String.valueOf(error));
             }
         } else {
-
             // if it is not a server error show a toast that it is a network error
             showMessage("Please check your internet connection  !");
         }
     }
 
     private void showMessage(String s) {
-
         Toast.makeText(Register.this, s, Toast.LENGTH_SHORT).show();
     }
 
     public void click(){
         insertUser();
-
     }
-    public void onClick(View v){
 
-
-
-    }
     @Override
     public void onDestroy() {
         super.onDestroy();

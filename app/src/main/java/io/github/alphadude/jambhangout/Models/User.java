@@ -10,6 +10,15 @@ public class User {
     String email;
     String password;
     String token;
+    String fullName;
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
 
     public String getToken() {
         return token;
